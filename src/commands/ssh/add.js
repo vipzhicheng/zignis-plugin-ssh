@@ -15,10 +15,10 @@ exports.handler = async function (argv) {
     {
       type: 'password',
       name: 'key',
-      message: 'Please provide your key which will be used to encrypt and decrypt ssh accounts:',
+      message: 'Enter key to encrypt the ssh account:',
       validate: (answer) => {
         if (answer.length === 0) {
-          return 'Please input at least one char.'
+          return 'Please enter at least one char.'
         }
         return true
       },
@@ -32,10 +32,10 @@ exports.handler = async function (argv) {
     {
       type: 'input',
       name: 'label',
-      message: 'Please input a label to help you remember what it is about:',
+      message: 'Enter a label to help you to remember:',
       validate: (answer) => {
         if (answer.length === 0) {
-          return 'Please input at least one char.'
+          return 'Please enter at least one char.'
         }
         return true
       }
@@ -43,10 +43,10 @@ exports.handler = async function (argv) {
     {
       type: 'input',
       name: 'host',
-      message: 'Please input a ssh host:',
+      message: 'Enter a ssh host:',
       validate: (answer) => {
         if (answer.length === 0) {
-          return 'Please input at least one char.'
+          return 'Please enter at least one char.'
         }
         return true
       }
@@ -54,13 +54,14 @@ exports.handler = async function (argv) {
     {
       type: 'input',
       name: 'port',
-      message: 'Please input a ssh port: (default is 22)',
+      message: 'Enter a ssh port: (default is 22)',
+      default: 22,
       filter: (answer) => {
-        return Number(answer)
+        return answer ? Number(answer) : 22
       },
       validate: (answer) => {
         if (answer.length === 0) {
-          return 'Please input at least one char.'
+          return 'Please enter at least one char.'
         }
 
         if (!Utils._.isInteger(Number(answer)) || Number(answer) > 65535) {
@@ -73,10 +74,10 @@ exports.handler = async function (argv) {
     {
       type: 'input',
       name: 'username',
-      message: 'Please input a ssh username:',
+      message: 'Enter a ssh username:',
       validate: (answer) => {
         if (answer.length === 0) {
-          return 'Please input at least one char.'
+          return 'Please enter at least one char.'
         }
         return true
       }
@@ -84,18 +85,18 @@ exports.handler = async function (argv) {
     {
       type: 'password',
       name: 'password',
-      message: 'Please input a ssh password:',
+      message: 'Enter a ssh password: (input nothing if use private key)',
     },
     {
       type: 'password',
       name: 'password_confirm',
-      message: 'Please confirm the password you just input:',
+      message: 'Confirm the password you just enter:',
       validate: (answer, answers) => {
         if (answer.length === 0) {
-          return 'Please input at least one char.'
+          return 'Please enter at least one char.'
         }
         if (answers.password !== answer) {
-          return 'Password not match with previous one.'
+          return 'Confirmed password not match.'
         }
         return true
       },
@@ -109,11 +110,11 @@ exports.handler = async function (argv) {
     {
       type: 'input',
       name: 'private_key',
-      message: 'Please input where your private key file locate:',
+      message: 'Enter private key file path:',
       validate: (answer) => {
         
         if (answer.length === 0) {
-          return 'Please input at least one char.'
+          return 'Please enter at least one char.'
         }
 
         return true
@@ -126,8 +127,6 @@ exports.handler = async function (argv) {
       }
     },
 
-    console.log(answers)
-    
   ])
 
   console.log(answers)
