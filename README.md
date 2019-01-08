@@ -7,8 +7,22 @@ zignis-plugin-ssh 顾名思义，这是一个用来管理 ssh 账号的命令行
 ```
 $ npm i -g zignis zignis-plugin-ssh
 $ zignis ssh add
-$ zignis ssh list
-$ zignis ssh login
+$ zignis ssh edit
+$ zignis ssh list|ls
+$ zignis ssh delete
+$ zignis ssh login|to
+```
+
+# 帮助信息
+
+```
+zignis ssh <op> [keywords..]
+
+SSH tool, includes add/edit, delete, list|ls, login|to operations
+
+选项：
+  --key, -k                  Key to be used to encrypt and decrypt ssh accounts.                         [默认值: false]
+  --opts, -o                 extra options for ssh login                                                 [默认值: false]
 ```
 
 # 密钥管理
@@ -31,11 +45,17 @@ $ zignis ssh login
 
 关于 Key 的选择，如果配置在配置文件中或者记在笔记里，可以设置的长一些，如果是自己记在心里，那就不宜过长。
 
-密钥文件会放到 `~/.zignis/.ssh-accounts，但是由于是加密的，所以相对比较安全
+账户配置文件会放到 `~/.zignis/.ssh-accounts，但是由于是加密的，所以相对比较安全
+
+# 特殊用法
+
+- 配置中的 label 和 命令行中的 keywords 可以组合使用，在 edit, delete, list, login 子命令执行时，都可以通过 keywords 过滤 label，并且 keywords 支持多个，过滤取的是交集，方便快速定位
+- login 命令的 `--opts` 参数将会传给 ssh 命令，因此我们可以做其他端口映射， tunnel 等用途
+- 
 
 # 依赖和兼容性
 
-这个工具依赖机器有安装 openssh 和 expect 命令行工具，因此基本上大多数 Linux 以及 MacOS 都应该是支持的，Windows 就不支持了。
+这个工具依赖机器有安装 OpenSSH 和 expect 命令行工具，因此基本上大多数 Linux 以及 MacOS 都应该是支持的，Windows 就不支持了。
 
 # 协议
 

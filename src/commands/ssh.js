@@ -1,123 +1,21 @@
+const path = require('path')
 const { Utils } = require('zignis')
 const { inquirer, fs } = Utils
-const parse = require('url-parse')
+const funcs = require('../common/funcs')
 
-const CFG_PATH = `${process.env.HOME}/.zignis/.ssh`
+const CFG_PATH = `${process.env.HOME}/.zignis/.ssh-accounts`
 const CFG_TEMPLATE = 'ssh://${username}:${password}:${privateKeyFile}@${host}:${port} ${label}'
 const CFG_VIEW_TEMPLATE = 'ssh://${username}@${host}:${port} ${label}'
+const LOGIN_CMD = 'expect ${script} ${username} ${host} ${port} ${password} ${privateKeyFile} ${opts}'
 
-const crypto = require('crypto')
-const algorithm = 'rc4'
-
-const encrypt = function (text, key){
-  const cipher = crypto.createCipher(algorithm, key)
-  let crypted = cipher.update(text,'utf8','hex')
-  crypted += cipher.final('hex');
-  return crypted;
-}
- 
-const decrypt = function (text, key){
-  const decipher = crypto.createCipher(algorithm, key)
-  let dec = decipher.update(text,'hex','utf8')
-  dec += decipher.final('utf8');
-  return dec;
+const deleteAndSave = async (cfgData, chooseAccountIndex) => {
+  cfgData.splice(chooseAccountIndex, 1)
+  fs.writeFileSync(CFG_PATH, cfgData.join("\n"))
+  Utils.info('Done!')
 }
 
-
-exports.command = 'ssh <op> [keywords..]'
-exports.desc = 'ssh tool'
-
-exports.builder = function (yargs) {
-  yargs.option('key', {
-    default: false,
-    describe: 'Key to be used to encrypt and decrypt ssh accounts.'
-  })
-}
-
-exports.handler = async function (argv) {
-  if (['add', 'edit', 'list', 'delete', 'login'].indexOf(argv.op) === -1) {
-    Utils.error(`Invalid operation: ${argv.op}!`)
-  }
-
-  argv.key =
-    argv.key ||
-    Utils._.get(Utils.getCombinedConfig(), 'commandDefault.ssh.key') ||
-    ''
-
-  await fs.ensureFileSync(CFG_PATH)
-  let cfgData = fs.readFileSync(CFG_PATH, 'utf-8')
-  if (!cfgData) {
-    cfgData = []
-  } else {
-    cfgData = cfgData.trim().split('\n')
-  }
-
-  cfgFiltered = cfgData.filter(line => {
-    return argv.keywords.every(keyword => line.indexOf(keyword) > -1)
-  })
-
-  let chooseAccount
-  if (cfgFiltered.length > 1) {
-    const accountChoose = await inquirer.prompt([
-      {
-        type: 'list',
-        name: 'chooseAccount',
-        message: 'Choose an account to continue',
-        choices: cfgFiltered.map(line => {
-          let account = parse(line.substring(0, line.indexOf(' ')))
-          account.label = line.substring(line.indexOf(' ')).trim()
-          if (account.auth.split(':')[2].length > 0) {
-            account.privateKeyFile = account.auth.split(':')[2]
-            account.password = ''
-          }
-
-          return {
-            value: line,
-            name: Utils._.template(CFG_VIEW_TEMPLATE)({
-              host: account.hostname,
-              port: account.port,
-              username: account.username,
-              label: account.label
-            })
-          }
-
-        })
-      }
-    ])
-    chooseAccount = accountChoose.chooseAccount
-  } else if (cfgFiltered.length === 1) {
-    chooseAccount = cfgFiltered[0]
-  }
-
-  const chooseAccountIndex = cfgData.indexOf(chooseAccount)
-  let account
-  if (chooseAccount) {
-    account = parse(chooseAccount.substring(0, chooseAccount.indexOf(' ')))
-    account.label = chooseAccount.substring(chooseAccount.indexOf(' ')).trim()
-    if (account.auth.split(':')[2].length > 0) {
-      account.privateKeyFile = account.auth.split(':')[2]
-      account.password = ''
-    }
-  }
-
+const save = async (account, key, argv, cfgData, chooseAccountIndex) => {
   const answers = await inquirer.prompt([
-    {
-      type: 'password',
-      name: 'key',
-      message: 'Enter key to encrypt the ssh account:',
-      validate: answer => {
-        if (answer.length === 0) {
-          return 'Please enter at least one char.'
-        }
-        return true
-      },
-      when: answers => {
-        if (!argv.key) {
-          return true
-        }
-        return false
-      },
-    },
     {
       type: 'input',
       name: 'label',
@@ -128,7 +26,7 @@ exports.handler = async function (argv) {
         }
         return true
       },
-      default: account ? account.label : argv.keywords.join(' ')
+      default: account ? account.label : argv.keywords.length > 0 ? argv.keywords.join(' ') : undefined
     },
     {
       type: 'input',
@@ -220,9 +118,7 @@ exports.handler = async function (argv) {
       default: account ? account.privateKeyFile : undefined
     }
   ])
-
-  argv.key = Utils.md5(argv.key || answers.key)
-
+  
   if (chooseAccountIndex === -1) {
     cfgData.push(
       Utils._.template(CFG_TEMPLATE)({
@@ -230,8 +126,8 @@ exports.handler = async function (argv) {
         port: answers.port,
         label: answers.label,
         username: answers.username,
-        password: answers.password ? encrypt(answers.password, argv.key) : '',
-        privateKeyFile: answers.privateKeyFile ? encrypt(answers.privateKeyFile, argv.key) : '' 
+        password: answers.password ? funcs.encrypt(answers.password, key) : '',
+        privateKeyFile: answers.privateKeyFile ? funcs.encrypt(answers.privateKeyFile, key) : '' 
       })
     )
   } else {
@@ -240,11 +136,149 @@ exports.handler = async function (argv) {
       port: answers.port,
       label: answers.label,
       username: answers.username,
-      password: answers.password ? encrypt(answers.password, argv.key) : '',
-      privateKeyFile: answers.privateKeyFile ? encrypt(answers.privateKeyFile, argv.key) : '' 
+      password: answers.password ? funcs.encrypt(answers.password, key) : '',
+      privateKeyFile: answers.privateKeyFile ? funcs.encrypt(answers.privateKeyFile, key) : '' 
     })
   }
-  
 
   fs.writeFileSync(CFG_PATH, cfgData.join("\n"))
+  Utils.info('Done!')
+}
+
+exports.command = 'ssh <op> [keywords..]'
+exports.desc = 'SSH tool, includes add/edit, delete, list|ls, login|to operations'
+
+exports.builder = function (yargs) {
+  yargs.option('key', {
+    default: false,
+    describe: 'Key to be used to encrypt or decrypt ssh accounts.',
+    alias: 'k'
+  })
+
+  yargs.option('opts', {
+    default: false,
+    describe: 'Extra options for SSH login',
+    alias: 'o'
+  })
+}
+
+exports.handler = async function (argv) {
+  if (['add', 'edit', 'list', 'ls', 'delete', 'login', 'to'].indexOf(argv.op) === -1) {
+    Utils.error(`Invalid operation: ${argv.op}!`)
+  }
+
+  argv.key =
+    argv.key ||
+    Utils._.get(Utils.getCombinedConfig(), 'commandDefault.ssh.key') ||
+    ''
+
+  await fs.ensureFileSync(CFG_PATH)
+  let cfgData = fs.readFileSync(CFG_PATH, 'utf-8')
+  if (!cfgData) {
+    cfgData = []
+  } else {
+    cfgData = cfgData.trim().split('\n')
+  }
+
+  cfgFiltered = cfgData.filter(line => {
+    return argv.keywords.every(keyword => line.indexOf(keyword) > -1)
+  })
+
+  if (argv.op === 'list' || argv.op === 'ls') {
+    cfgFiltered.map(line => {
+      let account = funcs.parseLine(line)
+      console.log(Utils._.template(CFG_VIEW_TEMPLATE)({
+        host: account.hostname,
+        port: account.port,
+        username: account.username,
+        label: account.label
+      }))
+      
+    })
+    return
+  }
+
+  let chooseAccount
+  if (argv.op !== 'add') {
+    if (argv.op === 'delete' && cfgFiltered.length >= 1 || cfgFiltered.length > 1) {
+      const accountChoose = await inquirer.prompt([
+        {
+          type: 'list',
+          name: 'chooseAccount',
+          message: 'Choose an account to continue',
+          choices: cfgFiltered.map(line => {
+            let account = funcs.parseLine(line)
+  
+            return {
+              value: line,
+              name: Utils._.template(CFG_VIEW_TEMPLATE)({
+                host: account.hostname,
+                port: account.port,
+                username: account.username,
+                label: account.label
+              })
+            }
+          })
+        }
+      ])
+      chooseAccount = accountChoose.chooseAccount
+    } else if (cfgFiltered.length === 1) {
+      chooseAccount = cfgFiltered[0]
+    } else {
+      Utils.error('Matched account not found')
+    }
+  }
+
+  const chooseAccountIndex = cfgData.indexOf(chooseAccount)
+  let account
+  if (chooseAccount) {
+    account = funcs.parseLine(chooseAccount)
+  }
+
+  if (argv.op !== 'delete' && argv.op !== 'list' && argv.op !== 'ls') {
+    if (!argv.key) {
+      ({ key: argv.key } = await inquirer.prompt([
+        {
+          type: 'password',
+          name: 'key',
+          message: 'Enter key to encrypt or decrypt:',
+          validate: answer => {
+            if (answer.length === 0) {
+              return 'Please enter at least one char.'
+            }
+  
+            return true
+          },
+        },
+      ]))
+    }
+  }
+  
+  const key = Utils.md5(argv.key)
+  if (['add', 'edit'].indexOf(argv.op) > -1) {
+    await save(account, key, argv, cfgData, chooseAccountIndex)
+  } else if (argv.op === 'delete') {
+    await deleteAndSave(cfgData, chooseAccountIndex)
+  } else if (['login', 'to'].indexOf(argv.op) > -1) {
+
+    try {
+      if (account.privateKeyFile) {
+        if (!fs.existsSync(path.resolve(funcs.decrypt(account.privateKeyFile, key).replace('~', process.env.HOME)))) {
+          Utils.error('Private key not exist')
+        }
+      }
+
+      Utils.exec(Utils._.template(LOGIN_CMD)({
+        script: path.resolve(process.cwd(), 'login.exp'),
+        host: account.hostname,
+        port: account.port,
+        username: account.username,
+        password: account.password ? funcs.decrypt(account.password, key) : '-',
+        privateKeyFile: account.privateKeyFile ? funcs.decrypt(account.privateKeyFile, key) : '-',
+        opts: argv.opts ? argv.opts : '-'
+      }))
+    } catch (e) {
+      Utils.exec(e.message)
+    }
+  }
 }
