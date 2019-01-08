@@ -10,6 +10,9 @@
   "author": "",
   "license": "ISC",
   "peerDependencies": {
-    "zignis": "^1.2.1"
+    "zignis": "^1.2.2"
+  },
+  "dependencies": {
+    "url-parse": "^1.4.4"
   }
 }
