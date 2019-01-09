@@ -269,7 +269,7 @@ exports.handler = async function (argv) {
       }
 
       Utils.exec(Utils._.template(LOGIN_CMD)({
-        script: path.resolve(process.cwd(), 'login.exp'),
+        script: path.resolve(__dirname, 'login.exp'),
         host: account.hostname,
         port: account.port,
         username: account.username,
