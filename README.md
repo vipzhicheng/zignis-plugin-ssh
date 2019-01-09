@@ -51,7 +51,6 @@ SSH tool, includes add/edit, delete, list|ls, login|to operations
 
 - 配置中的 label 和 命令行中的 keywords 可以组合使用，在 edit, delete, list, login 子命令执行时，都可以通过 keywords 过滤 label，并且 keywords 支持多个，过滤取的是交集，方便快速定位
 - login 命令的 `--opts` 参数将会传给 ssh 命令，因此我们可以做其他端口映射， tunnel 等用途
-- 
 
 ## 依赖和兼容性
 
