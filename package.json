@@ -8,9 +8,9 @@
   },
   "keywords": [],
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "peerDependencies": {
-    "zignis": "^1.2.2"
+    "zignis": "^1.4.8"
   },
   "dependencies": {
     "url-parse": "^1.4.4"
