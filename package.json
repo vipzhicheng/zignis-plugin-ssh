@@ -13,6 +13,6 @@
     "zignis": "^1.4.8"
   },
   "dependencies": {
-    "url-parse": "^1.4.4"
+    "url-parse": "^1.4.7"
   }
 }
